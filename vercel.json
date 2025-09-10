@@ -1,15 +1,40 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "builds": [
     {
-      "src": "api/index.ts",
-      "use": "@vercel/node"
+      "src": "api/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "dist/**",
+          "src/**",
+          "node_modules/@nestjs/**",
+          "node_modules/reflect-metadata/**",
+          "node_modules/rxjs/**",
+          "node_modules/class-transformer/**",
+          "node_modules/class-validator/**",
+          "node_modules/ts-node/**"
+        ]
+      }
+    },
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
+    },
+    {
       "src": "/(.*)",
-      "dest": "api/index.ts"
+      "dest": "/public/$1"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

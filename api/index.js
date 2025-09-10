@@ -1,13 +1,25 @@
 const { NestFactory } = require('@nestjs/core');
 const { ValidationPipe } = require('@nestjs/common');
-const { AppModule } = require('../dist/app.module');
 
-let app: any;
+let app;
 
 async function createNestApp() {
   if (!app) {
     try {
-      console.log('🚀 Initializing NestJS app...');
+      console.log('🚀 Loading AppModule from dist...');
+      
+      // Try to load the compiled AppModule from dist
+      let AppModule;
+      try {
+        AppModule = require('../dist/app.module').AppModule;
+      } catch (distError) {
+        console.log('📦 Dist not found, trying src...');
+        // Fallback to TypeScript compilation
+        require('ts-node/register');
+        AppModule = require('../src/app.module').AppModule;
+      }
+      
+      console.log('🚀 Creating NestJS app...');
       
       app = await NestFactory.create(AppModule, {
         logger: ['error', 'warn', 'log'],
@@ -39,13 +51,14 @@ async function createNestApp() {
       console.log('✅ NestJS app initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize NestJS app:', error);
+      console.error('Stack:', error.stack);
       throw error;
     }
   }
   return app;
 }
 
-module.exports = async function handler(req: any, res: any) {
+module.exports = async function handler(req, res) {
   try {
     console.log(`📡 ${req.method} ${req.url}`);
     
@@ -62,25 +75,25 @@ module.exports = async function handler(req: any, res: any) {
     const expressInstance = app.getHttpAdapter().getInstance();
     
     return new Promise((resolve, reject) => {
-      expressInstance(req, res, (err: any) => {
+      expressInstance(req, res, (err) => {
         if (err) {
           console.error('❌ Express handler error:', err);
           reject(err);
         } else {
-          resolve(undefined);
+          resolve();
         }
       });
     });
   } catch (error) {
     console.error('🚨 Serverless function crashed:', error);
-    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Stack trace:', error.stack);
     
     // Ensure response is sent
     if (!res.headersSent) {
       res.status(500).json({
         error: 'Internal Server Error',
         message: 'Tourist Safety API is temporarily unavailable',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        details: error.message || 'Unknown error',
         timestamp: new Date().toISOString(),
         status: 500,
         service: 'Tourist Safety Backend'
