@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { MockDatabaseService } from '../../services/mock-database.service';
+import { RealLocationService } from '../../services/real-location.service';
 import { EmergencyService } from '../emergency/emergency.service';
 
 @Injectable()
 export class LocationService {
   constructor(
     private readonly mockDb: MockDatabaseService,
+    private readonly realLocationService: RealLocationService,
     private readonly emergencyService: EmergencyService,
   ) {}
 
@@ -21,12 +23,30 @@ export class LocationService {
       throw new NotFoundException('Tourist not found');
     }
 
-    // Create new location record
+    // Get enhanced location data from real APIs if available
+    const realLocationData = await this.realLocationService.getLocationFromCoordinates(
+      locationData.latitude, 
+      locationData.longitude
+    );
+
+    // Get safety rating for the location
+    const safetyData = await this.realLocationService.checkSafetyRating(
+      locationData.latitude, 
+      locationData.longitude
+    );
+
+    // Get weather information
+    const weatherData = await this.realLocationService.getWeatherData(
+      locationData.latitude, 
+      locationData.longitude
+    );
+
+    // Create new location record with enhanced data
     const location = await this.mockDb.createLocation({
       touristId: locationData.touristId,
       latitude: locationData.latitude,
       longitude: locationData.longitude,
-      address: locationData.address,
+      address: realLocationData?.address || locationData.address || 'Unknown location',
       accuracy: locationData.accuracy,
     });
 
@@ -34,10 +54,46 @@ export class LocationService {
     await this.mockDb.updateTouristLocation(locationData.touristId, {
       latitude: locationData.latitude,
       longitude: locationData.longitude,
-      address: locationData.address,
+      address: realLocationData?.address || locationData.address || 'Unknown location',
     });
 
-    return location;
+    // Check for safety alerts
+    const safetyRating = safetyData?.rating || 'medium';
+    if (safetyRating === 'low' || safetyRating === 'very-low') {
+      await this.emergencyService.sendAlert({
+        touristId: locationData.touristId,
+        type: 'unsafe-area',
+        severity: safetyRating === 'very-low' ? 'critical' : 'high',
+        message: `Tourist entered ${safetyRating} safety area`,
+        location: { 
+          latitude: locationData.latitude, 
+          longitude: locationData.longitude,
+          address: realLocationData?.address || locationData.address
+        },
+      });
+    }
+
+    // Check for severe weather alerts
+    if (weatherData?.alerts && weatherData.alerts.length > 0) {
+      await this.emergencyService.sendAlert({
+        touristId: locationData.touristId,
+        type: 'weather-alert',
+        severity: 'high',
+        message: `Severe weather detected: ${weatherData.alerts.join(', ')}`,
+        location: { 
+          latitude: locationData.latitude, 
+          longitude: locationData.longitude,
+          address: realLocationData?.address || locationData.address
+        },
+      });
+    }
+
+    return {
+      ...location,
+      safetyRating,
+      weatherData,
+      realLocationData,
+    };
   }
 
   async getCurrentLocation(touristId: string) {

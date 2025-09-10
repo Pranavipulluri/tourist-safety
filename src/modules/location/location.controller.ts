@@ -1,11 +1,15 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { RealLocationService } from '../../services/real-location.service';
 import { LocationService } from './location.service';
 
 @ApiTags('Location')
 @Controller('location')
 export class LocationController {
-  constructor(private readonly locationService: LocationService) {}
+  constructor(
+    private readonly locationService: LocationService,
+    private readonly realLocationService: RealLocationService,
+  ) {}
 
   @Post('update')
   @ApiOperation({ summary: 'Update tourist location' })
@@ -92,5 +96,63 @@ export class LocationController {
     @Query('radius') radius = 1
   ) {
     return this.locationService.getNearbyTourists(lat, lng, radius);
+  }
+
+  @Get('geocode/:address')
+  @ApiOperation({ summary: 'Get coordinates from address using real APIs' })
+  @ApiResponse({ status: 200, description: 'Coordinates and location details' })
+  @ApiParam({ name: 'address', description: 'Address to geocode' })
+  async geocodeAddress(@Param('address') address: string) {
+    return this.realLocationService.getCoordinatesFromAddress(address);
+  }
+
+  @Get('reverse-geocode')
+  @ApiOperation({ summary: 'Get address from coordinates using real APIs' })
+  @ApiResponse({ status: 200, description: 'Address and location details' })
+  @ApiQuery({ name: 'lat', required: true, description: 'Latitude' })
+  @ApiQuery({ name: 'lng', required: true, description: 'Longitude' })
+  async reverseGeocode(
+    @Query('lat') lat: number,
+    @Query('lng') lng: number
+  ) {
+    return this.realLocationService.getLocationFromCoordinates(lat, lng);
+  }
+
+  @Get('safety-rating')
+  @ApiOperation({ summary: 'Get safety rating for location' })
+  @ApiResponse({ status: 200, description: 'Safety rating and details' })
+  @ApiQuery({ name: 'lat', required: true, description: 'Latitude' })
+  @ApiQuery({ name: 'lng', required: true, description: 'Longitude' })
+  async getSafetyRating(
+    @Query('lat') lat: number,
+    @Query('lng') lng: number
+  ) {
+    return this.realLocationService.checkSafetyRating(lat, lng);
+  }
+
+  @Get('weather')
+  @ApiOperation({ summary: 'Get weather data for location' })
+  @ApiResponse({ status: 200, description: 'Weather information' })
+  @ApiQuery({ name: 'lat', required: true, description: 'Latitude' })
+  @ApiQuery({ name: 'lng', required: true, description: 'Longitude' })
+  async getWeatherData(
+    @Query('lat') lat: number,
+    @Query('lng') lng: number
+  ) {
+    return this.realLocationService.getWeatherData(lat, lng);
+  }
+
+  @Get('nearby-places')
+  @ApiOperation({ summary: 'Get nearby places of interest' })
+  @ApiResponse({ status: 200, description: 'Nearby places' })
+  @ApiQuery({ name: 'lat', required: true, description: 'Latitude' })
+  @ApiQuery({ name: 'lng', required: true, description: 'Longitude' })
+  @ApiQuery({ name: 'type', required: false, description: 'Place type (hospital, police, tourist_attraction)' })
+  async getNearbyPlaces(
+    @Query('lat') lat: number,
+    @Query('lng') lng: number,
+    @Query('type') type?: string
+  ) {
+    return this.realLocationService.getNearbyPlaces(lat, lng, type);
   }
 }
