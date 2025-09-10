@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏷️ Smart Tourist Safety Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #10b981;
+            color: white;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-indicator.offline {
+            background: #ef4444;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .dashboard {
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            color: #2d3748;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            grid-column: 1 / -1;
+        }
+
+        .device-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 4px solid #10b981;
+            transition: all 0.3s ease;
+        }
+
+        .device-card.sos {
+            border-left-color: #ef4444;
+            background: rgba(254, 242, 242, 0.9);
+            animation: emergency-blink 1s infinite;
+        }
+
+        @keyframes emergency-blink {
+            0%, 100% { background: rgba(254, 242, 242, 0.9); }
+            50% { background: rgba(254, 226, 226, 1); }
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .device-id {
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .device-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-online {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .device-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .location {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+
+        .alerts-panel {
+            grid-column: 1 / -1;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-sos {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+
+        .system-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .system-stat {
+            text-align: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏷️ Smart Tourist Safety Dashboard</h1>
+        <div class="status-indicator" id="connectionStatus">
+            <div class="status-dot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <!-- System Statistics -->
+        <div class="card">
+            <h3>📊 System Statistics</h3>
+            <div class="system-stats">
+                <div class="system-stat">
+                    <div class="stat-value" id="totalDevices">0</div>
+                    <div class="stat-label">Active Devices</div>
+                </div>
+                <div class="system-stat">
+                    <div class="stat-value" id="onlineDevices">0</div>
+                    <div class="stat-label">Online</div>
+                </div>
+                <div class="system-stat">
+                    <div class="stat-value" id="totalAlerts">0</div>
+                    <div class="stat-label">Alerts Today</div>
+                </div>
+                <div class="system-stat">
+                    <div class="stat-value" id="sosAlerts">0</div>
+                    <div class="stat-label">SOS Alerts</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="card">
+            <h3>🎮 Control Panel</h3>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="refreshData()">
+                    🔄 Refresh Data
+                </button>
+                <button class="btn btn-success" onclick="pingAllDevices()">
+                    📡 Ping All Devices
+                </button>
+                <button class="btn btn-danger" onclick="testSOS()">
+                    🚨 Test SOS Alert
+                </button>
+                <a href="http://localhost:3000/api/docs" target="_blank" class="btn btn-primary">
+                    📚 API Docs
+                </a>
+            </div>
+        </div>
+
+        <!-- Alerts Panel -->
+        <div class="card alerts-panel">
+            <h3>🚨 Recent Alerts</h3>
+            <div id="alertsContainer">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Loading alerts...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device Grid -->
+        <div class="device-grid" id="deviceGrid">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading devices...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:3000/api/v1';
+        const REFRESH_INTERVAL = 5000; // 5 seconds
+
+        // State
+        let devices = new Map();
+        let alerts = [];
+        let systemStats = {
+            totalDevices: 0,
+            onlineDevices: 0,
+            totalAlerts: 0,
+            sosAlerts: 0
+        };
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Tourist Safety Dashboard Initializing...');
+            initDashboard();
+            setInterval(refreshData, REFRESH_INTERVAL);
+        });
+
+        async function initDashboard() {
+            try {
+                updateConnectionStatus('online', 'Connected to Backend');
+                await refreshData();
+                console.log('✅ Dashboard initialized successfully');
+            } catch (error) {
+                console.error('❌ Failed to initialize dashboard:', error);
+                updateConnectionStatus('offline', 'Connection Failed');
+            }
+        }
+
+        async function refreshData() {
+            try {
+                // Simulate API calls (replace with real API endpoints)
+                await Promise.all([
+                    loadDevices(),
+                    loadAlerts(),
+                    updateSystemStats()
+                ]);
+                
+                renderDevices();
+                renderAlerts();
+                renderSystemStats();
+                
+            } catch (error) {
+                console.error('❌ Error refreshing data:', error);
+                updateConnectionStatus('offline', 'Connection Error');
+            }
+        }
+
+        async function loadDevices() {
+            // Simulate device data (replace with real API call)
+            const simulatedDevices = [
+                {
+                    id: 'TSB001234567',
+                    touristId: 'wokwi-tourist-001',
+                    status: 'online',
+                    lastSeen: new Date().toISOString(),
+                    battery: 85,
+                    heartRate: 72,
+                    location: {
+                        lat: 26.1445,
+                        lng: 91.7362
+                    },
+                    signalStrength: -45,
+                    uptime: 3600
+                },
+                {
+                    id: 'TSB001234568',
+                    touristId: 'tourist-002',
+                    status: 'online',
+                    lastSeen: new Date().toISOString(),
+                    battery: 67,
+                    heartRate: 78,
+                    location: {
+                        lat: 26.1455,
+                        lng: 91.7372
+                    },
+                    signalStrength: -52,
+                    uptime: 7200
+                }
+            ];
+
+            simulatedDevices.forEach(device => {
+                devices.set(device.id, device);
+            });
+
+            systemStats.totalDevices = devices.size;
+            systemStats.onlineDevices = Array.from(devices.values()).filter(d => d.status === 'online').length;
+        }
+
+        async function loadAlerts() {
+            // Simulate alerts (replace with real API call)
+            alerts = [
+                {
+                    id: 1,
+                    type: 'info',
+                    message: 'Device TSB001234567 connected successfully',
+                    timestamp: new Date().toISOString(),
+                    deviceId: 'TSB001234567'
+                },
+                {
+                    id: 2,
+                    type: 'info',
+                    message: 'Tourist wokwi-tourist-001 entered safe zone',
+                    timestamp: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
+                    deviceId: 'TSB001234567'
+                }
+            ];
+
+            systemStats.totalAlerts = alerts.length;
+            systemStats.sosAlerts = alerts.filter(a => a.type === 'sos').length;
+        }
+
+        async function updateSystemStats() {
+            // Stats are updated in loadDevices() and loadAlerts()
+        }
+
+        function renderDevices() {
+            const deviceGrid = document.getElementById('deviceGrid');
+            
+            if (devices.size === 0) {
+                deviceGrid.innerHTML = `
+                    <div class="loading">
+                        <p>No devices found. Start your ESP32 simulator!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            deviceGrid.innerHTML = Array.from(devices.values()).map(device => `
+                <div class="device-card ${device.sosActive ? 'sos' : ''}">
+                    <div class="device-header">
+                        <div class="device-id">${device.id}</div>
+                        <div class="device-status status-${device.status}">
+                            ${device.status}
+                        </div>
+                    </div>
+                    
+                    <div class="device-stats">
+                        <div class="stat">
+                            <div class="stat-value">${device.battery}%</div>
+                            <div class="stat-label">Battery</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${device.heartRate}</div>
+                            <div class="stat-label">Heart Rate</div>
+                        </div>
+                    </div>
+                    
+                    <div class="location">
+                        📍 Lat: ${device.location.lat.toFixed(4)}<br>
+                        📍 Lng: ${device.location.lng.toFixed(4)}<br>
+                        📶 Signal: ${device.signalStrength} dBm<br>
+                        ⏱️ Uptime: ${Math.floor(device.uptime / 60)}m
+                    </div>
+                    
+                    <div class="controls" style="margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="pingDevice('${device.id}')">
+                            📡 Ping
+                        </button>
+                        <button class="btn btn-success" onclick="requestLocation('${device.id}')">
+                            📍 Locate
+                        </button>
+                        <button class="btn btn-danger" onclick="testDeviceSOS('${device.id}')">
+                            🚨 Test SOS
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderAlerts() {
+            const alertsContainer = document.getElementById('alertsContainer');
+            
+            if (alerts.length === 0) {
+                alertsContainer.innerHTML = '<p style="text-align: center; color: #6b7280;">No alerts yet</p>';
+                return;
+            }
+
+            alertsContainer.innerHTML = alerts.map(alert => `
+                <div class="alert alert-${alert.type}">
+                    <div class="alert-icon">
+                        ${alert.type === 'sos' ? '🚨' : 'ℹ️'}
+                    </div>
+                    <div>
+                        <div>${alert.message}</div>
+                        <div style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.25rem;">
+                            ${new Date(alert.timestamp).toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderSystemStats() {
+            document.getElementById('totalDevices').textContent = systemStats.totalDevices;
+            document.getElementById('onlineDevices').textContent = systemStats.onlineDevices;
+            document.getElementById('totalAlerts').textContent = systemStats.totalAlerts;
+            document.getElementById('sosAlerts').textContent = systemStats.sosAlerts;
+        }
+
+        function updateConnectionStatus(status, text) {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('statusText');
+            
+            statusIndicator.className = `status-indicator ${status === 'online' ? '' : 'offline'}`;
+            statusText.textContent = text;
+        }
+
+        // Control functions
+        async function pingDevice(deviceId) {
+            console.log(`📡 Pinging device: ${deviceId}`);
+            
+            // Simulate success
+            addAlert('info', `Ping sent to device ${deviceId}`, deviceId);
+            
+            // In real implementation:
+            // try {
+            //     const response = await fetch(`${API_BASE_URL}/iot/device/${deviceId}/ping`, { method: 'POST' });
+            //     if (response.ok) {
+            //         addAlert('info', `Device ${deviceId} responded to ping`, deviceId);
+            //     }
+            // } catch (error) {
+            //     addAlert('error', `Failed to ping device ${deviceId}`, deviceId);
+            // }
+        }
+
+        async function requestLocation(deviceId) {
+            console.log(`📍 Requesting location from: ${deviceId}`);
+            addAlert('info', `Location request sent to device ${deviceId}`, deviceId);
+        }
+
+        async function testDeviceSOS(deviceId) {
+            console.log(`🚨 Testing SOS for device: ${deviceId}`);
+            addAlert('sos', `SOS test initiated for device ${deviceId}`, deviceId);
+        }
+
+        async function pingAllDevices() {
+            console.log('📡 Pinging all devices...');
+            devices.forEach((device, deviceId) => {
+                pingDevice(deviceId);
+            });
+        }
+
+        async function testSOS() {
+            console.log('🚨 Testing SOS system...');
+            addAlert('sos', 'System-wide SOS test initiated', 'SYSTEM');
+        }
+
+        function addAlert(type, message, deviceId) {
+            const alert = {
+                id: Date.now(),
+                type,
+                message,
+                timestamp: new Date().toISOString(),
+                deviceId
+            };
+            
+            alerts.unshift(alert); // Add to beginning
+            alerts = alerts.slice(0, 10); // Keep only last 10 alerts
+            
+            renderAlerts();
+            updateSystemStats();
+        }
+
+        // Add some demo data after 2 seconds
+        setTimeout(() => {
+            addAlert('info', 'ESP32 Tourist Safety Band connected successfully', 'TSB001234567');
+        }, 2000);
+
+        setTimeout(() => {
+            addAlert('info', 'Tourist entered monitored area (Kamakhya Temple)', 'TSB001234567');
+        }, 5000);
+
+        console.log('🎯 Dashboard loaded! Connect your ESP32 device to see real data.');
+        console.log('📡 MQTT Topics to monitor:');
+        console.log('   - iot/device/+/telemetry');
+        console.log('   - iot/device/+/sos');
+        console.log('   - iot/device/+/status');
+    </script>
+</body>
+</html>

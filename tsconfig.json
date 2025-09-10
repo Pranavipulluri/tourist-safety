@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2020",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@/*": ["src/*"],
+      "@/common/*": ["src/common/*"],
+      "@/modules/*": ["src/modules/*"],
+      "@/config/*": ["src/config/*"]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/modules/ai/**",
+    "**/modules/alerts/**",
+    "**/modules/auth/**",
+    "**/modules/blockchain/**",
+    "**/modules/dashboard/**",
+    "**/modules/iot/**",
+    "**/modules/notification/**",
+    "**/modules/websocket/**",
+    "**/database/**"
+  ],
+  "include": [
+    "src/main.ts",
+    "src/app.module.ts",
+    "src/health.controller.ts",
+    "src/common/**/*",
+    "src/entities/**/*",
+    "src/modules/tourist/**/*",
+    "src/modules/geofencing/**/*",
+    "src/modules/location/**/*",
+    "src/modules/emergency/**/*"
+  ]
+}
