@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "es2017",
+    "lib": ["esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "incremental": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve"
+  },
+  "include": [
+    "api/**/*",
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

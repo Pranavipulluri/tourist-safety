@@ -24,6 +24,8 @@ async function bootstrap() {
   app.enableCors({
     origin: '*',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Serve static files from public directory
