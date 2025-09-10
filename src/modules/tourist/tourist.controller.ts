@@ -22,7 +22,15 @@ export class TouristController {
   @ApiResponse({ status: 200, description: 'List of tourists' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
-  async findAll(@Query('page') page = 1, @Query('limit') limit = 10) {
+  @ApiQuery({ name: 'withLocation', required: false, description: 'Include current location data' })
+  async findAll(
+    @Query('page') page = 1, 
+    @Query('limit') limit = 10,
+    @Query('withLocation') withLocation?: string
+  ) {
+    if (withLocation === 'true') {
+      return this.touristService.findAllWithLocation();
+    }
     return this.touristService.findAll(page, limit);
   }
 

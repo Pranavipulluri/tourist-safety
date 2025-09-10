@@ -27,6 +27,10 @@ export class TouristService {
     };
   }
 
+  async findAllWithLocation(): Promise<any[]> {
+    return await this.mockDb.findAllTouristsWithCurrentLocation();
+  }
+
   async findOne(id: string): Promise<any> {
     const tourist = await this.mockDb.findTouristById(id);
     if (!tourist) {

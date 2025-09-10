@@ -1,12 +1,193 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 // Mock database service for development
 @Injectable()
 export class MockDatabaseService {
+  private readonly logger = new Logger(MockDatabaseService.name);
   private tourists: any[] = [];
   private locations: any[] = [];
   private alerts: any[] = [];
   private geofences: any[] = [];
+  private locationTrackingInterval: NodeJS.Timeout;
+
+  constructor() {
+    this.initializeSampleData();
+    this.startLocationTracking();
+  }
+
+  // Initialize with sample tourists and their locations
+  private initializeSampleData() {
+    this.logger.log('Initializing sample tourist data for testing...');
+    
+    // Sample tourists with realistic Indian locations
+    const sampleTourists = [
+      {
+        id: 'tourist_001',
+        firstName: 'Rahul',
+        lastName: 'Sharma',
+        email: 'rahul.sharma@email.com',
+        phoneNumber: '+91-9876543210',
+        emergencyContact: '+91-9876543211',
+        nationality: 'Indian',
+        passportNumber: 'A1234567',
+        currentLocation: {
+          latitude: 28.6139,
+          longitude: 77.2090,
+          address: 'India Gate, New Delhi'
+        },
+        isActive: true,
+        createdAt: new Date(Date.now() - 3600000), // 1 hour ago
+        updatedAt: new Date()
+      },
+      {
+        id: 'tourist_002',
+        firstName: 'Priya',
+        lastName: 'Patel',
+        email: 'priya.patel@email.com',
+        phoneNumber: '+91-9876543220',
+        emergencyContact: '+91-9876543221',
+        nationality: 'Indian',
+        passportNumber: 'B2345678',
+        currentLocation: {
+          latitude: 19.0760,
+          longitude: 72.8777,
+          address: 'Gateway of India, Mumbai'
+        },
+        isActive: true,
+        createdAt: new Date(Date.now() - 7200000), // 2 hours ago
+        updatedAt: new Date()
+      },
+      {
+        id: 'tourist_003',
+        firstName: 'Amit',
+        lastName: 'Kumar',
+        email: 'amit.kumar@email.com',
+        phoneNumber: '+91-9876543230',
+        emergencyContact: '+91-9876543231',
+        nationality: 'Indian',
+        passportNumber: 'C3456789',
+        currentLocation: {
+          latitude: 12.9716,
+          longitude: 77.5946,
+          address: 'Bangalore Palace, Bangalore'
+        },
+        isActive: true,
+        createdAt: new Date(Date.now() - 1800000), // 30 minutes ago
+        updatedAt: new Date()
+      }
+    ];
+
+    // Add sample tourists
+    this.tourists = sampleTourists;
+
+    // Create location history for each tourist
+    sampleTourists.forEach(tourist => {
+      this.createLocationHistory(tourist.id, tourist.currentLocation);
+    });
+
+    // Create sample geofences
+    this.geofences = [
+      {
+        id: 'geofence_001',
+        name: 'High Crime Area - Old Delhi',
+        type: 'RESTRICTED_ZONE',
+        centerLatitude: 28.6507,
+        centerLongitude: 77.2334,
+        radius: 500, // 500 meters
+        alertMessage: 'You are entering a high crime area. Please be cautious.',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        id: 'geofence_002',
+        name: 'Safe Zone - Connaught Place',
+        type: 'SAFE_ZONE',
+        centerLatitude: 28.6315,
+        centerLongitude: 77.2167,
+        radius: 1000, // 1 km
+        alertMessage: 'You are in a safe zone with good security.',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    ];
+
+    this.logger.log(`Initialized ${this.tourists.length} sample tourists with location tracking`);
+  }
+
+  private createLocationHistory(touristId: string, currentLocation: any) {
+    const now = new Date();
+    const locations = [];
+
+    // Create 10 location points over the last hour (every 6 minutes)
+    for (let i = 10; i >= 0; i--) {
+      const timestamp = new Date(now.getTime() - (i * 6 * 60 * 1000));
+      
+      // Add some random movement to simulate realistic tracking
+      const latVariation = (Math.random() - 0.5) * 0.01; // ~1km variation
+      const lngVariation = (Math.random() - 0.5) * 0.01;
+      
+      locations.push({
+        id: `location_${touristId}_${i}`,
+        touristId,
+        latitude: currentLocation.latitude + latVariation,
+        longitude: currentLocation.longitude + lngVariation,
+        accuracy: Math.random() * 20 + 5, // 5-25 meters accuracy
+        timestamp,
+        address: currentLocation.address
+      });
+    }
+
+    this.locations.push(...locations);
+  }
+
+  // Simulate real-time location updates
+  private startLocationTracking() {
+    // Update locations every 30 seconds for active tourists
+    this.locationTrackingInterval = setInterval(() => {
+      this.simulateLocationUpdates();
+    }, 30000); // 30 seconds
+
+    this.logger.log('Started automatic location tracking simulation');
+  }
+
+  private simulateLocationUpdates() {
+    this.tourists.forEach(tourist => {
+      if (tourist.isActive && tourist.currentLocation) {
+        // Simulate small movements (within 100 meters)
+        const latChange = (Math.random() - 0.5) * 0.001; // ~100m
+        const lngChange = (Math.random() - 0.5) * 0.001;
+        
+        const newLocation = {
+          latitude: tourist.currentLocation.latitude + latChange,
+          longitude: tourist.currentLocation.longitude + lngChange,
+          address: tourist.currentLocation.address
+        };
+
+        // Update tourist's current location
+        tourist.currentLocation = newLocation;
+        tourist.updatedAt = new Date();
+
+        // Add new location record
+        this.locations.push({
+          id: `location_${tourist.id}_${Date.now()}`,
+          touristId: tourist.id,
+          latitude: newLocation.latitude,
+          longitude: newLocation.longitude,
+          accuracy: Math.random() * 15 + 5,
+          timestamp: new Date(),
+          address: newLocation.address
+        });
+      }
+    });
+  }
+
+  onModuleDestroy() {
+    if (this.locationTrackingInterval) {
+      clearInterval(this.locationTrackingInterval);
+    }
+  }
 
   // Tourist operations
   async createTourist(touristData: any): Promise<any> {
@@ -23,6 +204,21 @@ export class MockDatabaseService {
 
   async findAllTourists(): Promise<any[]> {
     return this.tourists;
+  }
+
+  async findAllTouristsWithCurrentLocation(): Promise<any[]> {
+    return this.tourists.map(tourist => ({
+      ...tourist,
+      lastLocationUpdate: this.getLastLocationUpdate(tourist.id)
+    }));
+  }
+
+  private getLastLocationUpdate(touristId: string): Date | null {
+    const touristLocations = this.locations
+      .filter(l => l.touristId === touristId)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    return touristLocations.length > 0 ? touristLocations[0].timestamp : null;
   }
 
   async findTouristById(id: string): Promise<any | null> {

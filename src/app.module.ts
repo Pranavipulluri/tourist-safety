@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EmergencyModule } from './modules/emergency/emergency.module';
 import { HealthModule } from './modules/health/health.module';
 import { LocationModule } from './modules/location/location.module';
+import { SharedModule } from './modules/shared/shared.module';
 import { TouristModule } from './modules/tourist/tourist.module';
 // import { GeofencingModule } from './modules/geofencing/geofencing.module';
 
@@ -17,6 +18,9 @@ import { TouristModule } from './modules/tourist/tourist.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // Shared services (global)
+    SharedModule,
 
     // Database - Temporarily disabled for testing
     // TypeOrmModule.forRoot({

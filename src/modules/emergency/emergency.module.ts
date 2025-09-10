@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { MockDatabaseService } from '../../services/mock-database.service';
 import { EmergencyController } from './emergency.controller';
 import { EmergencyService } from './emergency.service';
+import { SmsService } from './services/sms.service';
 
 @Module({
-  providers: [EmergencyService, MockDatabaseService],
   controllers: [EmergencyController],
-  exports: [EmergencyService],
+  providers: [EmergencyService, SmsService],
+  exports: [EmergencyService, SmsService],
 })
 export class EmergencyModule {}
