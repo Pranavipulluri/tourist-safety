@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "dist/main.js": {
+      "runtime": "@vercel/node@18.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "dist/main.js"
+    }
+  ]
+}
