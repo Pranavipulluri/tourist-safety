@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Tourist } from '../../entities/tourist.entity';
-import { Location } from '../../entities/location.entity';
+import { MockDatabaseService } from '../../services/mock-database.service';
+import { EmergencyModule } from '../emergency/emergency.module';
 import { LocationController } from './location.controller';
 import { LocationService } from './location.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tourist, Location])],
+  imports: [EmergencyModule],
   controllers: [LocationController],
-  providers: [LocationService],
+  providers: [LocationService, MockDatabaseService],
   exports: [LocationService],
 })
 export class LocationModule {}

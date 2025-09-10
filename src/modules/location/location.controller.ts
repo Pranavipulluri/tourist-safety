@@ -1,5 +1,5 @@
-import { Controller, Post, Get, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LocationService } from './location.service';
 
 @ApiTags('Location')
@@ -42,20 +42,8 @@ export class LocationController {
     return this.locationService.getLocationHistory(touristId, limit);
   }
 
-  @Get('nearby/:touristId')
-  @ApiOperation({ summary: 'Find nearby tourists' })
-  @ApiResponse({ status: 200, description: 'Nearby tourists' })
-  @ApiParam({ name: 'touristId', description: 'Tourist ID' })
-  @ApiQuery({ name: 'radius', required: false, description: 'Search radius in meters' })
-  async findNearbyTourists(
-    @Param('touristId') touristId: string,
-    @Query('radius') radius = 1000
-  ) {
-    return this.locationService.getNearbyTourists(touristId, radius);
-  }
-
-  @Get('track/:touristId')
-  @ApiOperation({ summary: 'Get real-time tracking data' })
+  @Get('tracking/:touristId')
+  @ApiOperation({ summary: 'Get tracking data for tourist' })
   @ApiResponse({ status: 200, description: 'Tracking data' })
   @ApiParam({ name: 'touristId', description: 'Tourist ID' })
   async getTrackingData(@Param('touristId') touristId: string) {
@@ -63,7 +51,7 @@ export class LocationController {
   }
 
   @Post('bulk-update')
-  @ApiOperation({ summary: 'Bulk update locations from IoT devices' })
+  @ApiOperation({ summary: 'Bulk update locations' })
   @ApiResponse({ status: 200, description: 'Bulk update completed' })
   async bulkUpdateLocations(@Body() body: {
     updates: {
@@ -75,5 +63,34 @@ export class LocationController {
     }[];
   }) {
     return this.locationService.bulkUpdateLocations(body.updates);
+  }
+
+  @Post('detect-inactivity')
+  @ApiOperation({ summary: 'Detect inactive tourists and trigger safety alerts' })
+  @ApiResponse({ status: 200, description: 'Inactivity detection completed' })
+  async detectInactivity() {
+    return this.locationService.detectInactivityAndAlert();
+  }
+
+  @Get('activity-status/:touristId')
+  @ApiOperation({ summary: 'Get tourist activity status' })
+  @ApiResponse({ status: 200, description: 'Activity status' })
+  @ApiParam({ name: 'touristId', description: 'Tourist ID' })
+  async getActivityStatus(@Param('touristId') touristId: string) {
+    return this.locationService.getTouristActivityStatus(touristId);
+  }
+
+  @Get('nearby-coordinates')
+  @ApiOperation({ summary: 'Find nearby tourists by coordinates' })
+  @ApiResponse({ status: 200, description: 'Nearby tourists with activity status' })
+  @ApiQuery({ name: 'lat', required: true, description: 'Latitude' })
+  @ApiQuery({ name: 'lng', required: true, description: 'Longitude' })
+  @ApiQuery({ name: 'radius', required: false, description: 'Search radius in km' })
+  async getNearbyTouristsByCoordinates(
+    @Query('lat') lat: number,
+    @Query('lng') lng: number,
+    @Query('radius') radius = 1
+  ) {
+    return this.locationService.getNearbyTourists(lat, lng, radius);
   }
 }

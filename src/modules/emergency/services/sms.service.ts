@@ -1,25 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Location } from '../../../entities/location.entity';
-import { Tourist } from '../../../entities/tourist.entity';
+import { MockDatabaseService } from '../../../services/mock-database.service';
 
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
 
   constructor(
-    @InjectRepository(Tourist)
-    private touristRepository: Repository<Tourist>,
-    @InjectRepository(Location)
-    private locationRepository: Repository<Location>,
+    private readonly mockDb: MockDatabaseService,
   ) {}
 
   async sendErrorZoneAlert(touristId: string, zoneName: string, message: string) {
     try {
-      const tourist = await this.touristRepository.findOne({
-        where: { id: touristId },
-      });
+      const tourist = await this.mockDb.findTouristById(touristId);
 
       if (!tourist || !tourist.phoneNumber) {
         throw new Error('Tourist or phone number not found');
@@ -50,11 +42,12 @@ export class SmsService {
 
   async sendBulkSMS(location: { lat: number; lng: number; radius: number }, message: string, priority: string) {
     try {
-      // Find tourists within the specified radius
-      const touristsInArea = await this.getTouristsInRadius(location.lat, location.lng, location.radius);
+      // Find tourists within the specified radius using mock database
+      const touristsInArea = await this.mockDb.getNearbyTourists(location.lat, location.lng, location.radius);
 
       const results = [];
-      for (const tourist of touristsInArea) {
+      for (const touristData of touristsInArea) {
+        const tourist = touristData.tourist;
         if (tourist.phoneNumber) {
           const smsMessage = `📢 ${priority.toUpperCase()} ALERT: ${message}`;
 
@@ -86,26 +79,6 @@ export class SmsService {
     }
   }
 
-  private async getTouristsInRadius(lat: number, lng: number, radiusKm: number): Promise<Tourist[]> {
-    // This is a simplified implementation
-    // In production, you would use PostGIS or similar for accurate geospatial queries
-    const tourists = await this.touristRepository.find({
-      where: { isActive: true },
-    });
-
-    // Filter tourists based on their last known location
-    return tourists.filter(tourist => {
-      if (!tourist.currentLocation) return false;
-
-      const distance = this.calculateDistance(
-        lat, lng,
-        tourist.currentLocation.latitude, tourist.currentLocation.longitude
-      );
-
-      return distance <= radiusKm;
-    });
-  }
-
   private calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
     // Haversine formula for calculating distance between two points
     const R = 6371; // Earth's radius in kilometers
@@ -126,9 +99,7 @@ export class SmsService {
 
   async sendEmergencyAlert(touristId: string, alertType: string, location?: { lat: number; lng: number }) {
     try {
-      const tourist = await this.touristRepository.findOne({
-        where: { id: touristId },
-      });
+      const tourist = await this.mockDb.findTouristById(touristId);
 
       if (!tourist || !tourist.phoneNumber) {
         throw new Error('Tourist or phone number not found');

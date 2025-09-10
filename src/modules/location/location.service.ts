@@ -1,16 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
-import { Location } from '../../entities/location.entity';
-import { Tourist } from '../../entities/tourist.entity';
+import { MockDatabaseService } from '../../services/mock-database.service';
+import { EmergencyService } from '../emergency/emergency.service';
 
 @Injectable()
 export class LocationService {
   constructor(
-    @InjectRepository(Location)
-    private readonly locationRepository: Repository<Location>,
-    @InjectRepository(Tourist)
-    private readonly touristRepository: Repository<Tourist>,
+    private readonly mockDb: MockDatabaseService,
+    private readonly emergencyService: EmergencyService,
   ) {}
 
   async updateLocation(locationData: {
@@ -19,14 +15,14 @@ export class LocationService {
     longitude: number;
     address?: string;
     accuracy?: number;
-  }): Promise<Location> {
-    const tourist = await this.touristRepository.findOne({ where: { id: locationData.touristId } });
+  }) {
+    const tourist = await this.mockDb.findTouristById(locationData.touristId);
     if (!tourist) {
       throw new NotFoundException('Tourist not found');
     }
 
     // Create new location record
-    const location = this.locationRepository.create({
+    const location = await this.mockDb.createLocation({
       touristId: locationData.touristId,
       latitude: locationData.latitude,
       longitude: locationData.longitude,
@@ -34,33 +30,24 @@ export class LocationService {
       accuracy: locationData.accuracy,
     });
 
-    const savedLocation = await this.locationRepository.save(location);
-
     // Update tourist's current location
-    tourist.currentLocation = {
+    await this.mockDb.updateTouristLocation(locationData.touristId, {
       latitude: locationData.latitude,
       longitude: locationData.longitude,
       address: locationData.address,
-    };
-    await this.touristRepository.save(tourist);
+    });
 
-    return savedLocation;
+    return location;
   }
 
-  async getCurrentLocation(touristId: string): Promise<{
-    tourist: Tourist;
-    currentLocation?: { latitude: number; longitude: number; address?: string };
-    lastUpdate?: Date;
-  }> {
-    const tourist = await this.touristRepository.findOne({ where: { id: touristId } });
+  async getCurrentLocation(touristId: string) {
+    const tourist = await this.mockDb.findTouristById(touristId);
     if (!tourist) {
       throw new NotFoundException('Tourist not found');
     }
 
-    const lastLocation = await this.locationRepository.findOne({
-      where: { touristId },
-      order: { timestamp: 'DESC' },
-    });
+    const locations = await this.mockDb.getTouristLocations(touristId);
+    const lastLocation = locations.length > 0 ? locations[locations.length - 1] : null;
 
     return {
       tourist,
@@ -69,66 +56,19 @@ export class LocationService {
     };
   }
 
-  async getLocationHistory(touristId: string, limit = 50): Promise<Location[]> {
-    return await this.locationRepository.find({
-      where: { touristId },
-      order: { timestamp: 'DESC' },
-      take: limit,
-    });
+  async getLocationHistory(touristId: string, limit = 50) {
+    const locations = await this.mockDb.getTouristLocations(touristId);
+    return locations.slice(-limit).reverse(); // Get last 50, most recent first
   }
 
-  async getNearbyTourists(touristId: string, radius = 1000): Promise<{
-    currentTourist: Tourist;
-    nearbyTourists: Tourist[];
-    count: number;
-  }> {
-    const currentTourist = await this.touristRepository.findOne({ where: { id: touristId } });
-    if (!currentTourist || !currentTourist.currentLocation) {
-      throw new NotFoundException('Tourist not found or location not available');
-    }
-
-    // Simple distance calculation (this is a basic implementation)
-    // In production, you would use PostGIS or similar spatial functions
-    const allTourists = await this.touristRepository.find({
-      where: { isActive: true },
-    });
-
-    const nearbyTourists = allTourists.filter(tourist => {
-      if (tourist.id === touristId || !tourist.currentLocation) return false;
-
-      const distance = this.calculateDistance(
-        currentTourist.currentLocation.latitude,
-        currentTourist.currentLocation.longitude,
-        tourist.currentLocation.latitude,
-        tourist.currentLocation.longitude
-      );
-
-      return distance <= radius;
-    });
-
-    return {
-      currentTourist,
-      nearbyTourists,
-      count: nearbyTourists.length,
-    };
-  }
-
-  async getTrackingData(touristId: string): Promise<{
-    tourist: Tourist;
-    currentLocation?: { latitude: number; longitude: number; address?: string };
-    recentLocations: Location[];
-    isTracking: boolean;
-  }> {
-    const tourist = await this.touristRepository.findOne({ where: { id: touristId } });
+  async getTrackingData(touristId: string) {
+    const tourist = await this.mockDb.findTouristById(touristId);
     if (!tourist) {
       throw new NotFoundException('Tourist not found');
     }
 
-    const recentLocations = await this.locationRepository.find({
-      where: { touristId },
-      order: { timestamp: 'DESC' },
-      take: 10,
-    });
+    const allLocations = await this.mockDb.getTouristLocations(touristId);
+    const recentLocations = allLocations.slice(-10).reverse();
 
     return {
       tourist,
@@ -144,7 +84,7 @@ export class LocationService {
     longitude: number;
     timestamp: Date;
     accuracy?: number;
-  }[]): Promise<{ processed: number; errors: number }> {
+  }[]) {
     let processed = 0;
     let errors = 0;
 
@@ -164,6 +104,68 @@ export class LocationService {
     }
 
     return { processed, errors };
+  }
+
+  async detectInactivityAndAlert() {
+    const inactivityResults = await this.mockDb.detectInactivity();
+    let alertsTriggered = 0;
+
+    for (const result of inactivityResults) {
+      if (result.tourist.phoneNumber) {
+        await this.emergencyService.initiateEmergencyCall(
+          result.tourist.id,
+          'INACTIVITY_ALERT',
+          {
+            latitude: result.lastLocation.latitude,
+            longitude: result.lastLocation.longitude,
+          }
+        );
+        alertsTriggered++;
+      }
+    }
+
+    return {
+      inactiveTourists: inactivityResults,
+      alertsTriggered,
+    };
+  }
+
+  async getTouristActivityStatus(touristId: string) {
+    const tourist = await this.mockDb.findTouristById(touristId);
+    if (!tourist) {
+      throw new NotFoundException('Tourist not found');
+    }
+
+    const locations = await this.mockDb.getTouristLocations(touristId);
+    const lastLocation = locations.length > 0 ? locations[locations.length - 1] : null;
+
+    if (!lastLocation) {
+      return {
+        isActive: tourist.isActive,
+        status: 'unknown' as const,
+      };
+    }
+
+    const inactiveMinutes = Math.floor((Date.now() - lastLocation.timestamp.getTime()) / (1000 * 60));
+    const status = inactiveMinutes > 30 ? 'inactive' : 'active';
+
+    return {
+      isActive: tourist.isActive,
+      lastLocation,
+      inactiveMinutes,
+      status: status as 'active' | 'inactive',
+    };
+  }
+
+  async getNearbyTourists(lat: number, lng: number, radiusKm: number = 1) {
+    const nearbyTourists = await this.mockDb.getNearbyTourists(lat, lng, radiusKm);
+
+    return {
+      nearbyTourists,
+      center: { lat, lng },
+      radius: radiusKm,
+      count: nearbyTourists.length,
+    };
   }
 
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
