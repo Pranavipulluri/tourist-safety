@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tourist Safety Backend API</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+        .status {
+            color: #28a745;
+            font-size: 1.2em;
+            margin: 20px 0;
+        }
+        .api-links {
+            margin: 30px 0;
+        }
+        .api-links a {
+            display: inline-block;
+            margin: 10px;
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+        .api-links a:hover {
+            background: #0056b3;
+        }
+        .features {
+            text-align: left;
+            margin: 30px 0;
+        }
+        .features h3 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        .features ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .features li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .features li:before {
+            content: "✅ ";
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Tourist Safety Backend API</h1>
+        <div class="status">✅ API is Running Successfully!</div>
+        
+        <div class="api-links">
+            <a href="/api/docs" target="_blank">📚 API Documentation</a>
+            <a href="/api/health" target="_blank">🔍 Health Check</a>
+            <a href="/api/tourist" target="_blank">👥 Tourist API</a>
+        </div>
+
+        <div class="features">
+            <h3>🎯 Available Features:</h3>
+            <ul>
+                <li>Real-time Tourist Location Tracking</li>
+                <li>Emergency SOS & Alert System</li>
+                <li>Google Maps Integration</li>
+                <li>Geofencing & Safety Zones</li>
+                <li>SMS & Email Notifications</li>
+                <li>FIR Automation</li>
+                <li>Inactivity Detection</li>
+                <li>Weather & Safety Ratings</li>
+            </ul>
+        </div>
+
+        <div class="features">
+            <h3>📊 API Statistics:</h3>
+            <ul>
+                <li>29 Total Endpoints</li>
+                <li>4 Main API Categories</li>
+                <li>Real-time Location Updates</li>
+                <li>Production-Ready Deployment</li>
+            </ul>
+        </div>
+
+        <p style="color: #6c757d; margin-top: 30px;">
+            <strong>Base URL:</strong> <code id="baseUrl"></code><br>
+            <strong>Version:</strong> 1.0.0<br>
+            <strong>Last Updated:</strong> September 10, 2025
+        </p>
+    </div>
+
+    <script>
+        // Set the base URL dynamically
+        document.getElementById('baseUrl').textContent = window.location.origin + '/api';
+        
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click animation to buttons
+            const buttons = document.querySelectorAll('.api-links a');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    this.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        this.style.transform = 'scale(1)';
+                    }, 150);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
