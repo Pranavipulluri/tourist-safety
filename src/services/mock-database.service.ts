@@ -8,6 +8,7 @@ export class MockDatabaseService {
   private locations: any[] = [];
   private alerts: any[] = [];
   private geofences: any[] = [];
+  private digitalIds: any[] = [];
   private locationTrackingInterval: NodeJS.Timeout;
 
   constructor() {
@@ -384,5 +385,58 @@ export class MockDatabaseService {
       Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+  }
+
+  // Digital ID Management Methods
+  async createDigitalId(digitalIdData: any): Promise<any> {
+    const digitalId = {
+      ...digitalIdData,
+      id: digitalIdData.id || `digital_id_${Date.now()}`,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.digitalIds.push(digitalId);
+    this.logger.log(`🆔 Digital ID created: ${digitalId.digitalIdNumber}`);
+    return digitalId;
+  }
+
+  async findDigitalIdById(id: string): Promise<any | null> {
+    return this.digitalIds.find(digitalId => digitalId.id === id) || null;
+  }
+
+  async findDigitalIdByNumber(digitalIdNumber: string): Promise<any | null> {
+    return this.digitalIds.find(digitalId => digitalId.digitalIdNumber === digitalIdNumber) || null;
+  }
+
+  async findDigitalIdByTouristId(touristId: string): Promise<any | null> {
+    return this.digitalIds.find(digitalId => digitalId.touristId === touristId) || null;
+  }
+
+  async findAllDigitalIds(): Promise<any[]> {
+    return this.digitalIds;
+  }
+
+  async updateDigitalId(id: string, updateData: any): Promise<any | null> {
+    const index = this.digitalIds.findIndex(digitalId => digitalId.id === id);
+    if (index === -1) return null;
+
+    this.digitalIds[index] = {
+      ...this.digitalIds[index],
+      ...updateData,
+      updatedAt: new Date()
+    };
+
+    this.logger.log(`🆔 Digital ID updated: ${this.digitalIds[index].digitalIdNumber}`);
+    return this.digitalIds[index];
+  }
+
+  async deleteDigitalId(id: string): Promise<boolean> {
+    const index = this.digitalIds.findIndex(digitalId => digitalId.id === id);
+    if (index === -1) return false;
+
+    const deleted = this.digitalIds.splice(index, 1)[0];
+    this.logger.log(`🆔 Digital ID deleted: ${deleted.digitalIdNumber}`);
+    return true;
   }
 }

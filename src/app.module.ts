@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config';
 // Import entities
 
 // Import modules
+import { AuthModule } from './modules/auth/auth.module';
+import { DigitalIdModule } from './modules/digital-id/digital-id.module';
 import { EmergencyModule } from './modules/emergency/emergency.module';
 import { HealthModule } from './modules/health/health.module';
 import { LocationModule } from './modules/location/location.module';
@@ -34,9 +36,11 @@ import { TouristModule } from './modules/tourist/tourist.module';
 
     // Feature modules
     HealthModule,
+    AuthModule,
     TouristModule,
     EmergencyModule,
     LocationModule,
+    DigitalIdModule,
     // GeofencingModule,
   ],
   controllers: [],
