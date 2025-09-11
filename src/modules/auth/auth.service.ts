@@ -13,8 +13,7 @@ export class AuthService {
 
   async login(email: string) {
     // For now, just find by email - no password verification
-    const tourists = await this.touristService.findAll();
-    const tourist = tourists.find(t => t.email === email);
+    const tourist = await this.touristService.findByEmail(email);
     
     if (!tourist) {
       throw new Error('Tourist not found');
