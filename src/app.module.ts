@@ -11,6 +11,7 @@ import { Tourist } from './entities/tourist.entity';
 
 // Import modules
 import { AdminModule } from './modules/admin/admin.module';
+import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DigitalIdModule } from './modules/digital-id/digital-id.module';
 import { EmergencyModule } from './modules/emergency/emergency.module';
@@ -57,6 +58,7 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
     LocationModule,
     DigitalIdModule,
     AdminModule,
+    AlertsModule,
     WebsocketModule,
     // GeofencingModule,
   ],

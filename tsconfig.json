@@ -28,7 +28,6 @@
     "node_modules",
     "dist",
     "**/modules/ai/**",
-    "**/modules/alerts/**",
     "**/modules/auth/**",
     "**/modules/blockchain/**",
     "**/modules/dashboard/**",
@@ -45,6 +44,7 @@
     "src/entities/**/*",
     "src/modules/tourist/**/*",
     "src/modules/location/**/*",
-    "src/modules/emergency/**/*"
+    "src/modules/emergency/**/*",
+    "src/modules/alerts/**/*"
   ]
 }

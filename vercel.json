@@ -36,6 +36,6 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "DATABASE_URL": "postgresql://postgres:password@your-external-database.example.com:5432/tourist_safety_db"
+    "DATABASE_URL": "postgresql://postgres.yjhmdewvibwwapmsxdyq:tourist2024safety!@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
   }
 }
