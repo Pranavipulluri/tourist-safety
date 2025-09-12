@@ -51,7 +51,7 @@ export class LocationController {
   @ApiResponse({ status: 200, description: 'Tracking data' })
   @ApiParam({ name: 'touristId', description: 'Tourist ID' })
   async getTrackingData(@Param('touristId') touristId: string) {
-    return this.locationService.getTrackingData(touristId);
+    return this.locationService.getTrackingStatus(touristId);
   }
 
   @Post('bulk-update')

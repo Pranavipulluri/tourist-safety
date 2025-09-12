@@ -1,5 +1,10 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
+export enum UserRole {
+  TOURIST = 'TOURIST',
+  ADMIN = 'ADMIN'
+}
+
 @Entity('tourists')
 export class Tourist {
   @PrimaryGeneratedColumn('uuid')
@@ -13,6 +18,9 @@ export class Tourist {
 
   @Column()
   lastName: string;
+
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.TOURIST })
+  role: UserRole;
 
   @Column({ nullable: true })
   phoneNumber: string;

@@ -1,5 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString } from 'class-validator';
+
+export enum UserRole {
+  TOURIST = 'TOURIST',
+  ADMIN = 'ADMIN',
+}
 
 export class CreateTouristDto {
   @ApiProperty({ description: 'Tourist email address' })
@@ -13,6 +18,11 @@ export class CreateTouristDto {
   @ApiProperty({ description: 'Last name' })
   @IsString()
   lastName: string;
+
+  @ApiProperty({ description: 'Password for account', required: false })
+  @IsOptional()
+  @IsString()
+  password?: string;
 
   @ApiProperty({ description: 'Phone number', required: false })
   @IsOptional()
@@ -33,4 +43,9 @@ export class CreateTouristDto {
   @IsOptional()
   @IsString()
   nationality?: string;
+
+  @ApiProperty({ description: 'User role', enum: UserRole, default: UserRole.TOURIST })
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
 }

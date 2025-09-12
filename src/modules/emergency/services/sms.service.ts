@@ -1,17 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MockDatabaseService } from '../../../services/mock-database.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Tourist } from '../../../entities/tourist.entity';
 
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
 
   constructor(
-    private readonly mockDb: MockDatabaseService,
+    @InjectRepository(Tourist)
+    private readonly touristRepository: Repository<Tourist>,
   ) {}
 
   async sendErrorZoneAlert(touristId: string, zoneName: string, message: string) {
     try {
-      const tourist = await this.mockDb.findTouristById(touristId);
+      const tourist = await this.touristRepository.findOne({ 
+        where: { id: touristId } 
+      });
 
       if (!tourist || !tourist.phoneNumber) {
         throw new Error('Tourist or phone number not found');
@@ -42,12 +47,23 @@ export class SmsService {
 
   async sendBulkSMS(location: { lat: number; lng: number; radius: number }, message: string, priority: string) {
     try {
-      // Find tourists within the specified radius using mock database
-      const touristsInArea = await this.mockDb.getNearbyTourists(location.lat, location.lng, location.radius);
+      // Find tourists within the specified radius
+      const allTourists = await this.touristRepository.find();
+      const touristsInArea = allTourists.filter(tourist => {
+        if (tourist.currentLocation) {
+          const distance = this.calculateDistance(
+            location.lat, 
+            location.lng, 
+            tourist.currentLocation.latitude, 
+            tourist.currentLocation.longitude
+          );
+          return distance <= location.radius;
+        }
+        return false;
+      });
 
       const results = [];
-      for (const touristData of touristsInArea) {
-        const tourist = touristData.tourist;
+      for (const tourist of touristsInArea) {
         if (tourist.phoneNumber) {
           const smsMessage = `📢 ${priority.toUpperCase()} ALERT: ${message}`;
 
@@ -99,7 +115,9 @@ export class SmsService {
 
   async sendEmergencyAlert(touristId: string, alertType: string, location?: { lat: number; lng: number }) {
     try {
-      const tourist = await this.mockDb.findTouristById(touristId);
+      const tourist = await this.touristRepository.findOne({ 
+        where: { id: touristId } 
+      });
 
       if (!tourist || !tourist.phoneNumber) {
         throw new Error('Tourist or phone number not found');

@@ -1,20 +1,41 @@
 import { Injectable } from '@nestjs/common';
-import { MockDatabaseService } from '../../services/mock-database.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Alert } from '../../entities/alert.entity';
+import { Tourist } from '../../entities/tourist.entity';
 
 @Injectable()
 export class WebsocketService {
   constructor(
-    private readonly mockDb: MockDatabaseService,
+    @InjectRepository(Tourist)
+    private readonly touristRepository: Repository<Tourist>,
+    @InjectRepository(Alert)
+    private readonly alertRepository: Repository<Alert>,
   ) {}
 
   async getDashboardStats() {
-    // Mock dashboard stats for development
+    // Get real dashboard stats from database
+    const activeTourists = await this.touristRepository.count();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const alertsLast24h = await this.alertRepository.count({
+      where: {
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) as any
+      }
+    });
+    const pendingAlerts = await this.alertRepository.count({
+      where: {
+        isResolved: false
+      }
+    });
+
     const stats = {
-      activeTourists: 25,
-      onlineDevices: 12,
-      alertsLast24h: 8,
-      pendingAlerts: 3,
-      criticalAlertsWeek: 2,
+      activeTourists,
+      onlineDevices: Math.floor(activeTourists * 0.7), // Simulate ~70% online
+      alertsLast24h,
+      pendingAlerts,
+      criticalAlertsWeek: Math.floor(alertsLast24h * 0.3), // Simulate critical alerts
       timestamp: new Date().toISOString(),
     };
 

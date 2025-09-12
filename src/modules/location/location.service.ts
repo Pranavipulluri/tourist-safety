@@ -1,14 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { MockDatabaseService } from '../../services/mock-database.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Location } from '../../entities/location.entity';
+import { Tourist } from '../../entities/tourist.entity';
 import { RealLocationService } from '../../services/real-location.service';
 import { EmergencyService } from '../emergency/emergency.service';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 
 @Injectable()
 export class LocationService {
   constructor(
-    private readonly mockDb: MockDatabaseService,
+    @InjectRepository(Location)
+    private readonly locationRepository: Repository<Location>,
+    @InjectRepository(Tourist)
+    private readonly touristRepository: Repository<Tourist>,
     private readonly realLocationService: RealLocationService,
     private readonly emergencyService: EmergencyService,
+    private readonly websocketGateway: WebsocketGateway,
   ) {}
 
   async updateLocation(locationData: {
@@ -18,7 +26,9 @@ export class LocationService {
     address?: string;
     accuracy?: number;
   }) {
-    const tourist = await this.mockDb.findTouristById(locationData.touristId);
+    const tourist = await this.touristRepository.findOne({ 
+      where: { id: locationData.touristId } 
+    });
     if (!tourist) {
       throw new NotFoundException('Tourist not found');
     }
@@ -42,19 +52,22 @@ export class LocationService {
     );
 
     // Create new location record with enhanced data
-    const location = await this.mockDb.createLocation({
+    const location = this.locationRepository.create({
       touristId: locationData.touristId,
       latitude: locationData.latitude,
       longitude: locationData.longitude,
       address: realLocationData?.address || locationData.address || 'Unknown location',
       accuracy: locationData.accuracy,
     });
+    await this.locationRepository.save(location);
 
     // Update tourist's current location
-    await this.mockDb.updateTouristLocation(locationData.touristId, {
-      latitude: locationData.latitude,
-      longitude: locationData.longitude,
-      address: realLocationData?.address || locationData.address || 'Unknown location',
+    await this.touristRepository.update(locationData.touristId, {
+      currentLocation: {
+        latitude: locationData.latitude,
+        longitude: locationData.longitude,
+        address: realLocationData?.address || locationData.address || 'Unknown location',
+      }
     });
 
     // Check for safety alerts
@@ -88,6 +101,22 @@ export class LocationService {
       });
     }
 
+    // Broadcast real-time location update to admin panels
+    const locationUpdateData = {
+      touristId: locationData.touristId,
+      touristName: `${tourist.firstName} ${tourist.lastName}`,
+      latitude: locationData.latitude,
+      longitude: locationData.longitude,
+      address: realLocationData?.address || locationData.address || 'Unknown location',
+      accuracy: locationData.accuracy,
+      safetyRating,
+      timestamp: new Date().toISOString(),
+      weatherCondition: weatherData?.current?.condition || 'unknown'
+    };
+    
+    // Broadcast to all admin users for real-time tracking
+    this.websocketGateway.broadcastLocationUpdate(locationUpdateData);
+
     return {
       ...location,
       safetyRating,
@@ -97,12 +126,18 @@ export class LocationService {
   }
 
   async getCurrentLocation(touristId: string) {
-    const tourist = await this.mockDb.findTouristById(touristId);
+    const tourist = await this.touristRepository.findOne({ 
+      where: { id: touristId } 
+    });
     if (!tourist) {
       throw new NotFoundException('Tourist not found');
     }
 
-    const locations = await this.mockDb.getTouristLocations(touristId);
+    const locations = await this.locationRepository.find({
+      where: { touristId },
+      order: { timestamp: 'DESC' },
+      take: 1
+    });
     const lastLocation = locations.length > 0 ? locations[locations.length - 1] : null;
 
     return {
@@ -112,25 +147,54 @@ export class LocationService {
     };
   }
 
-  async getLocationHistory(touristId: string, limit = 50) {
-    const locations = await this.mockDb.getTouristLocations(touristId);
-    return locations.slice(-limit).reverse(); // Get last 50, most recent first
+  async getLocationHistory(touristId: string, limit: number = 100) {
+    const locations = await this.locationRepository.find({
+      where: { touristId },
+      order: { timestamp: 'DESC' },
+      take: limit // Use provided limit or default to 100
+    });
+
+    return {
+      touristId,
+      locations: locations.map(loc => ({
+        id: loc.id,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        address: loc.address,
+        accuracy: loc.accuracy,
+        timestamp: loc.timestamp
+      }))
+    };
   }
 
-  async getTrackingData(touristId: string) {
-    const tourist = await this.mockDb.findTouristById(touristId);
+  async getTrackingStatus(touristId: string) {
+    const tourist = await this.touristRepository.findOne({ 
+      where: { id: touristId } 
+    });
     if (!tourist) {
       throw new NotFoundException('Tourist not found');
     }
 
-    const allLocations = await this.mockDb.getTouristLocations(touristId);
-    const recentLocations = allLocations.slice(-10).reverse();
+    const allLocations = await this.locationRepository.find({
+      where: { touristId },
+      order: { timestamp: 'DESC' },
+      take: 10 // Last 10 locations for tracking analysis
+    });
+
+    const lastLocation = allLocations[0];
+    const isTracking = tourist.isActive && lastLocation && 
+      (new Date().getTime() - new Date(lastLocation.timestamp).getTime()) < 300000; // 5 minutes
 
     return {
-      tourist,
-      currentLocation: tourist.currentLocation,
-      recentLocations,
-      isTracking: tourist.isActive,
+      touristId,
+      isTracking,
+      lastUpdate: lastLocation?.timestamp,
+      currentLocation: lastLocation ? {
+        latitude: lastLocation.latitude,
+        longitude: lastLocation.longitude,
+        address: lastLocation.address
+      } : null,
+      locationHistory: allLocations.length
     };
   }
 
@@ -163,36 +227,54 @@ export class LocationService {
   }
 
   async detectInactivityAndAlert() {
-    const inactivityResults = await this.mockDb.detectInactivity();
+    // Find tourists who haven't updated location in the last 30 minutes
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    
+    const inactiveTourists = await this.touristRepository
+      .createQueryBuilder('tourist')
+      .leftJoin('tourist.locations', 'location')
+      .where('tourist.isActive = :isActive', { isActive: true })
+      .andWhere(
+        'tourist.id NOT IN ' +
+        '(SELECT DISTINCT l.touristId FROM locations l WHERE l.timestamp > :thirtyMinutesAgo)',
+        { thirtyMinutesAgo }
+      )
+      .getMany();
     let alertsTriggered = 0;
 
-    for (const result of inactivityResults) {
-      if (result.tourist.phoneNumber) {
+    for (const result of inactiveTourists) {
+      if (result.phoneNumber) {
         await this.emergencyService.initiateEmergencyCall(
-          result.tourist.id,
+          result.id,
           'INACTIVITY_ALERT',
-          {
-            latitude: result.lastLocation.latitude,
-            longitude: result.lastLocation.longitude,
-          }
+          result.currentLocation ? {
+            latitude: result.currentLocation.latitude,
+            longitude: result.currentLocation.longitude,
+          } : null
         );
         alertsTriggered++;
       }
     }
 
     return {
-      inactiveTourists: inactivityResults,
+      inactiveTourists: inactiveTourists,
       alertsTriggered,
     };
   }
 
   async getTouristActivityStatus(touristId: string) {
-    const tourist = await this.mockDb.findTouristById(touristId);
+    const tourist = await this.touristRepository.findOne({ 
+      where: { id: touristId } 
+    });
     if (!tourist) {
       throw new NotFoundException('Tourist not found');
     }
 
-    const locations = await this.mockDb.getTouristLocations(touristId);
+    const locations = await this.locationRepository.find({
+      where: { touristId },
+      order: { timestamp: 'DESC' },
+      take: 50 // Last 50 locations for activity analysis
+    });
     const lastLocation = locations.length > 0 ? locations[locations.length - 1] : null;
 
     if (!lastLocation) {
@@ -214,7 +296,23 @@ export class LocationService {
   }
 
   async getNearbyTourists(lat: number, lng: number, radiusKm: number = 1) {
-    const nearbyTourists = await this.mockDb.getNearbyTourists(lat, lng, radiusKm);
+    // For now, return all tourists within a simple bounding box
+    // In production, this should use PostGIS spatial queries
+    const tourists = await this.touristRepository.find({
+      where: { isActive: true },
+      relations: ['locations']
+    });
+
+    const nearbyTourists = tourists.filter(tourist => {
+      if (!tourist.currentLocation) return false;
+      
+      const distance = this.calculateDistance(
+        lat, lng,
+        tourist.currentLocation.latitude,
+        tourist.currentLocation.longitude
+      );
+      return distance <= radiusKm * 1000; // Convert km to meters
+    });
 
     return {
       nearbyTourists,

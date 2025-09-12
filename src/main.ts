@@ -9,7 +9,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 3001;
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -20,12 +20,15 @@ async function bootstrap() {
     })
   );
 
-  // CORS configuration
+  // CORS configuration - More permissive for development
   app.enableCors({
-    origin: '*',
+    origin: true, // Allow all origins in development
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: '*', // Allow all headers
+    exposedHeaders: ['Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Serve static files from public directory
