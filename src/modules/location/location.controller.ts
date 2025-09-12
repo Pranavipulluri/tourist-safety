@@ -155,4 +155,65 @@ export class LocationController {
   ) {
     return this.realLocationService.getNearbyPlaces(lat, lng, type);
   }
+
+  @Get('heatmap/alerts')
+  @ApiOperation({ summary: 'Get alerts heatmap data for visualization' })
+  @ApiResponse({ status: 200, description: 'Heatmap data with alert density' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Start date for filtering (ISO string)' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'End date for filtering (ISO string)' })
+  async getAlertsHeatmap(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string
+  ) {
+    const timeRange = startDate && endDate ? {
+      start: new Date(startDate),
+      end: new Date(endDate)
+    } : undefined;
+
+    return this.locationService.getAlertsHeatmapData(timeRange);
+  }
+
+  @Post('geofence/check-violations')
+  @ApiOperation({ summary: 'Check for geofence violations' })
+  @ApiResponse({ status: 200, description: 'Geofence violations detected' })
+  async checkGeofenceViolations(@Body() body: {
+    geofences: Array<{
+      id: string;
+      name: string;
+      type: 'safe_zone' | 'restricted_zone';
+      coordinates: Array<{ latitude: number; longitude: number }>;
+    }>;
+  }) {
+    return this.locationService.getGeofenceViolations(body.geofences);
+  }
+
+  @Post('geofence/create')
+  @ApiOperation({ summary: 'Create a new geofence' })
+  @ApiResponse({ status: 201, description: 'Geofence created successfully' })
+  async createGeofence(@Body() body: {
+    name: string;
+    type: 'safe_zone' | 'restricted_zone';
+    coordinates: Array<{ latitude: number; longitude: number }>;
+    description?: string;
+    isActive?: boolean;
+  }) {
+    return this.locationService.createGeofence(body);
+  }
+
+  @Get('stats/tourist-activity')
+  @ApiOperation({ summary: 'Get tourist location activity statistics' })
+  @ApiResponse({ status: 200, description: 'Location activity stats' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Start date for filtering (ISO string)' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'End date for filtering (ISO string)' })
+  async getTouristLocationStats(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string
+  ) {
+    const timeRange = startDate && endDate ? {
+      start: new Date(startDate),
+      end: new Date(endDate)
+    } : undefined;
+
+    return this.locationService.getTouristLocationStats(timeRange);
+  }
 }

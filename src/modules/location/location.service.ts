@@ -322,6 +322,226 @@ export class LocationService {
     };
   }
 
+  async getAlertsHeatmapData(timeRange?: { start: Date; end: Date }) {
+    const alertRepository = this.locationRepository.manager.getRepository('Alert');
+    
+    let query = alertRepository.createQueryBuilder('alert')
+      .select([
+        'alert.location',
+        'alert.type',
+        'alert.severity',
+        'alert.createdAt'
+      ])
+      .where('alert.location IS NOT NULL');
+
+    if (timeRange) {
+      query = query.andWhere('alert.createdAt BETWEEN :start AND :end', {
+        start: timeRange.start,
+        end: timeRange.end
+      });
+    }
+
+    const alerts = await query.getMany();
+
+    // Group alerts by location grid (for heatmap)
+    const heatmapData = [];
+    const gridSize = 0.001; // Approximately 100m grid
+
+    const locationGroups = new Map();
+    
+    alerts.forEach(alert => {
+      if (alert.location && alert.location.latitude && alert.location.longitude) {
+        // Round to grid
+        const gridLat = Math.round(alert.location.latitude / gridSize) * gridSize;
+        const gridLng = Math.round(alert.location.longitude / gridSize) * gridSize;
+        const key = `${gridLat},${gridLng}`;
+
+        if (!locationGroups.has(key)) {
+          locationGroups.set(key, {
+            latitude: gridLat,
+            longitude: gridLng,
+            count: 0,
+            severityWeights: { low: 0, medium: 0, high: 0, critical: 0 },
+            types: {}
+          });
+        }
+
+        const group = locationGroups.get(key);
+        group.count++;
+        
+        // Weight by severity
+        const severityWeight = {
+          'low': 1,
+          'medium': 2,
+          'high': 3,
+          'critical': 5
+        }[alert.severity] || 1;
+        
+        group.severityWeights[alert.severity] = (group.severityWeights[alert.severity] || 0) + 1;
+        group.types[alert.type] = (group.types[alert.type] || 0) + 1;
+      }
+    });
+
+    // Convert to array with intensity
+    locationGroups.forEach((group, key) => {
+      const totalWeight = Object.entries(group.severityWeights)
+        .reduce((sum, [severity, count]) => {
+          const weight = { low: 1, medium: 2, high: 3, critical: 5 }[severity] || 1;
+          return sum + (Number(count) * weight);
+        }, 0);
+
+      heatmapData.push({
+        ...group,
+        intensity: Math.min(totalWeight / 10, 1) // Normalize intensity 0-1
+      });
+    });
+
+    return {
+      heatmapData: heatmapData.sort((a, b) => b.intensity - a.intensity),
+      totalAlerts: alerts.length,
+      timeRange: timeRange || { start: null, end: null },
+      hotspots: heatmapData.filter(point => point.intensity > 0.5).slice(0, 10)
+    };
+  }
+
+  async getGeofenceViolations(geofences: Array<{
+    id: string;
+    name: string;
+    type: 'safe_zone' | 'restricted_zone';
+    coordinates: Array<{ latitude: number; longitude: number }>;
+  }>) {
+    const activeTourists = await this.touristRepository.find({
+      where: { isActive: true },
+    });
+
+    const violations = [];
+    
+    for (const tourist of activeTourists) {
+      if (!tourist.currentLocation) continue;
+
+      for (const geofence of geofences) {
+        const isInside = this.isPointInPolygon(
+          tourist.currentLocation.latitude,
+          tourist.currentLocation.longitude,
+          geofence.coordinates
+        );
+
+        // Check for violations based on geofence type
+        const isViolation = 
+          (geofence.type === 'restricted_zone' && isInside) ||
+          (geofence.type === 'safe_zone' && !isInside);
+
+        if (isViolation) {
+          violations.push({
+            touristId: tourist.id,
+            touristName: `${tourist.firstName} ${tourist.lastName}`,
+            geofenceId: geofence.id,
+            geofenceName: geofence.name,
+            geofenceType: geofence.type,
+            violationType: geofence.type === 'restricted_zone' ? 'ENTERED_RESTRICTED' : 'LEFT_SAFE_ZONE',
+            location: tourist.currentLocation,
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    return {
+      violations,
+      totalViolations: violations.length,
+      geofencesChecked: geofences.length,
+      touristsMonitored: activeTourists.length
+    };
+  }
+
+  async createGeofence(geofenceData: {
+    name: string;
+    type: 'safe_zone' | 'restricted_zone';
+    coordinates: Array<{ latitude: number; longitude: number }>;
+    description?: string;
+    isActive?: boolean;
+  }) {
+    // In a real implementation, you'd save this to a Geofence entity
+    const geofence = {
+      id: `geofence_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      ...geofenceData,
+      isActive: geofenceData.isActive !== false,
+      createdAt: new Date().toISOString()
+    };
+
+    console.log(`🗺️ Geofence created: ${geofence.name} (${geofence.type})`);
+
+    return geofence;
+  }
+
+  async getTouristLocationStats(timeRange?: { start: Date; end: Date }) {
+    let query = this.locationRepository.createQueryBuilder('location')
+      .leftJoin('location.tourist', 'tourist');
+
+    if (timeRange) {
+      query = query.where('location.timestamp BETWEEN :start AND :end', {
+        start: timeRange.start,
+        end: timeRange.end
+      });
+    }
+
+    const locations = await query.getMany();
+
+    // Calculate stats
+    const uniqueTourists = new Set(locations.map(l => l.touristId)).size;
+    const totalLocations = locations.length;
+    
+    // Group by hour for activity patterns
+    const hourlyActivity = Array(24).fill(0);
+    locations.forEach(location => {
+      const hour = new Date(location.timestamp).getHours();
+      hourlyActivity[hour]++;
+    });
+
+    // Find most active areas
+    const areaActivity = new Map();
+    locations.forEach(location => {
+      if (location.address) {
+        const area = location.address.split(',')[0]; // First part of address
+        areaActivity.set(area, (areaActivity.get(area) || 0) + 1);
+      }
+    });
+
+    const topAreas = Array.from(areaActivity.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([area, count]) => ({ area, count }));
+
+    return {
+      uniqueTourists,
+      totalLocations,
+      averageLocationsPerTourist: totalLocations / uniqueTourists || 0,
+      hourlyActivity,
+      topAreas,
+      timeRange: timeRange || { start: null, end: null }
+    };
+  }
+
+  // Helper method to check if a point is inside a polygon
+  private isPointInPolygon(lat: number, lng: number, polygon: Array<{ latitude: number; longitude: number }>): boolean {
+    let inside = false;
+    const x = lng;
+    const y = lat;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].longitude;
+      const yi = polygon[i].latitude;
+      const xj = polygon[j].longitude;
+      const yj = polygon[j].latitude;
+
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+
+    return inside;
+  }
+
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const R = 6371e3; // Earth's radius in meters
     const φ1 = lat1 * Math.PI / 180;
