@@ -271,7 +271,7 @@ export class MockDatabaseService {
       id: Date.now().toString(),
       ...alertData,
       createdAt: new Date(),
-      isResolved: false,
+      status: 'ACTIVE',
     };
     this.alerts.push(alert);
     return alert;

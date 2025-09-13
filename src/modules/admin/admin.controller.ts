@@ -8,6 +8,38 @@ export class AdminController {
 
   constructor(private readonly touristService: TouristService) {}
 
+  @Get('dashboard/overview')
+  @ApiOperation({ summary: 'Get dashboard overview statistics' })
+  async getDashboardOverview() {
+    try {
+      const touristsResponse = await this.touristService.findAll(1, 1000); // Get a large number for counting
+      const tourists = touristsResponse.data;
+      const activeTourists = tourists.filter(t => t.isActive);
+      
+      return {
+        totalTourists: touristsResponse.total,
+        activeTourists: activeTourists.length,
+        totalAlerts: 5, // Mock data for now
+        activeAlerts: 2,
+        resolvedAlerts: 3,
+        averageResponseTime: 12.5,
+        success: true
+      };
+    } catch (error) {
+      console.error('Error fetching dashboard overview:', error);
+      return {
+        totalTourists: 0,
+        activeTourists: 0,
+        totalAlerts: 0,
+        activeAlerts: 0,
+        resolvedAlerts: 0,
+        averageResponseTime: 0,
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   @Get('tourists')
   @ApiOperation({ summary: 'Get all tourists for admin panel' })
   async getAllTourists() {

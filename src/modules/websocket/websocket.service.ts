@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Alert } from '../../entities/alert.entity';
 import { Tourist } from '../../entities/tourist.entity';
+import { Alert, AlertStatus } from '../alerts/alert.entity';
 
 @Injectable()
 export class WebsocketService {
@@ -26,7 +26,7 @@ export class WebsocketService {
     });
     const pendingAlerts = await this.alertRepository.count({
       where: {
-        isResolved: false
+        status: AlertStatus.ACTIVE
       }
     });
 

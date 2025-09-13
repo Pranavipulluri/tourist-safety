@@ -3,25 +3,30 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // Import entities
-import { Alert } from './entities/alert.entity';
+import { AccessLog } from './digital-tourist-id/entities/access-log.entity';
+import { BlockchainEvent } from './digital-tourist-id/entities/blockchain-event.entity';
+import { DigitalTouristId } from './digital-tourist-id/entities/digital-tourist-id.entity';
 import { DigitalId } from './entities/digital-id.entity';
 import { Geofence } from './entities/geofence.entity';
 import { Location } from './entities/location.entity';
 import { Tourist } from './entities/tourist.entity';
+import { Alert } from './modules/alerts/alert.entity';
 
 // Import modules
+import { DigitalTouristIdModule } from './digital-tourist-id/digital-tourist-id.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DigitalIdModule } from './modules/digital-id/digital-id.module';
 import { EmergencyModule } from './modules/emergency/emergency.module';
+import { GeofencingModule } from './modules/geofencing/geofencing.module';
 import { HealthModule } from './modules/health/health.module';
 import { LocationModule } from './modules/location/location.module';
 import { SharedModule } from './modules/shared/shared.module';
 import { TouristModule } from './modules/tourist/tourist.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
 // import { DatabaseModule } from './database/database.module';
-// import { GeofencingModule } from './modules/geofencing/geofencing.module';
 
 @Module({
   imports: [
@@ -40,7 +45,7 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
       username: process.env.DATABASE_URL ? undefined : (process.env.DB_USERNAME || 'postgres'),
       password: process.env.DATABASE_URL ? undefined : (process.env.DB_PASSWORD || 'password123'),
       database: process.env.DATABASE_URL ? undefined : (process.env.DB_NAME || 'tourist_safety_db'),
-      entities: [Tourist, Location, Alert, Geofence, DigitalId],
+      entities: [Tourist, Location, Alert, Geofence, DigitalId, DigitalTouristId, AccessLog, BlockchainEvent],
       synchronize: process.env.NODE_ENV !== 'production', // Don't synchronize in production
       dropSchema: process.env.NODE_ENV !== 'production' && process.env.DROP_SCHEMA === 'true', // Only in development with explicit flag
       logging: process.env.NODE_ENV !== 'production',
@@ -57,10 +62,12 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
     EmergencyModule,
     LocationModule,
     DigitalIdModule,
+    DigitalTouristIdModule,
     AdminModule,
     AlertsModule,
+    DashboardModule,
     WebsocketModule,
-    // GeofencingModule,
+    GeofencingModule,
   ],
   controllers: [],
   providers: [],
