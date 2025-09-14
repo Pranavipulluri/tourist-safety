@@ -2,17 +2,24 @@ import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGenerat
 import { Tourist } from './tourist.entity';
 
 export enum AlertType {
-  SOS = 'sos',
-  GEOFENCE_VIOLATION = 'geofence_violation',
-  HEALTH_EMERGENCY = 'health_emergency',
-  SECURITY_THREAT = 'security_threat'
+  SOS = 'SOS',
+  PANIC = 'PANIC',
+  EMERGENCY = 'EMERGENCY',
+  MEDICAL = 'MEDICAL',
+  ACCIDENT = 'ACCIDENT',
+  CRIME = 'CRIME',
+  NATURAL_DISASTER = 'NATURAL_DISASTER',
+  GEOFENCE_VIOLATION = 'GEOFENCE_VIOLATION',
+  HEALTH_EMERGENCY = 'HEALTH_EMERGENCY',
+  SECURITY_THREAT = 'SECURITY_THREAT',
+  SAFETY_CHECK = 'SAFETY_CHECK'
 }
 
 export enum AlertSeverity {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  CRITICAL = 'critical'
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL'
 }
 
 @Entity('alerts')

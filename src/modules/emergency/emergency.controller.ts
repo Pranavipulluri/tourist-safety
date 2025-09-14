@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { EmergencyService } from './emergency.service';
 
@@ -18,14 +18,17 @@ export class EmergencyController {
   @Post('alert')
   @ApiOperation({ summary: 'Send emergency alert' })
   @ApiResponse({ status: 200, description: 'Alert sent successfully' })
-  async sendAlert(@Body() body: {
-    touristId: string;
-    type: string;
-    message: string;
-    severity: string;
-    location?: { latitude: number; longitude: number; address?: string };
-  }) {
-    return this.emergencyService.sendAlert(body);
+  async sendAlert(
+    @Body() body: {
+      touristId?: string;
+      type: string;
+      message: string;
+      severity: string;
+      location?: { latitude: number; longitude: number; address?: string };
+    },
+    @Headers('authorization') authorization?: string
+  ) {
+    return this.emergencyService.sendAlert(body, authorization);
   }
 
   @Get('alerts/:touristId')
